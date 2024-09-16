@@ -1,0 +1,502 @@
+import java.awt.*;
+import java.awt.event.*;
+import java.io.*;
+
+class RestoreFont { 				// Restore Font Class
+	byte[] glyphWidths = new byte[256];
+	byte[] glyphDefs = new byte[12*256];
+	boolean loaded = false;
+
+	public boolean loadDesktopFont(String path) {
+		byte[] desktopGlyphWidth = new byte[126];
+		byte[] desktopGlyphDef = new byte[12*126];
+		try (	
+			InputStream inputStream = new FileInputStream(path);
+		) {
+            
+			inputStream.read(desktopGlyphWidth);            
+			inputStream.read(desktopGlyphDef);                        
+			inputStream.close();          
+
+			System.arraycopy(desktopGlyphWidth, 0, glyphWidths, 32, 126);
+			System.arraycopy(desktopGlyphDef, 0, glyphDefs, 32*12, 126*12);            
+			
+			loaded = true;			
+			return true;
+		
+		} catch (Exception ex) {
+		
+			ex.printStackTrace();
+			return false;
+		}
+		
+	}
+
+	public boolean loadRestoreFont(String path) {
+		try (	
+			InputStream inputStream = new FileInputStream(path);
+		) {
+            
+			inputStream.read(glyphWidths);            
+			inputStream.read(glyphDefs);                        
+			inputStream.close();          
+
+			loaded = true;			
+			return true;
+		
+		} catch (Exception ex) {
+		
+			ex.printStackTrace();
+			return false;
+		}
+
+	}
+
+	public boolean saveRestoreFont(String path) {
+		try (
+			OutputStream outputStream = new FileOutputStream(path);
+		) {
+			outputStream.write(glyphWidths);
+			outputStream.write(glyphDefs);
+			outputStream.close();
+			return true;
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			return false;
+		}
+
+	}
+
+
+	public byte getGlyphWidth(int glyph) {	
+		return glyphWidths[glyph];
+	}
+
+	public byte[] getGlyphDef(int glyph) {	
+		byte[] glyphDef = new byte[12];
+		System.arraycopy(glyphDefs, 12*glyph, glyphDef, 0, 12);	
+		return glyphDef;
+	}
+}
+
+class FontCanvas extends Canvas {
+
+	byte[] font;
+	Color color;
+
+	public FontCanvas (byte[] fontDef, Color fontColor) {
+		font = fontDef;
+		color = fontColor;
+		setSize(new Dimension(640, 864));
+	}
+
+	public void paint (Graphics g) {
+		g.setColor(color);
+		g.setFont(new Font("Courier", Font.PLAIN, 8));
+		
+		for(int i=0;i<17;i++) {
+			g.drawLine(40*i, 0, 40*i, 863);
+			g.drawLine(0, 54*i, 639, 54*i);
+		}
+
+
+
+		for(int y=0;y<16;y++) {		
+			for(int x=0;x<16;x++) {	
+				g.drawString(String.format("%03d", y*16+x), 40*x+24, 54*y+51);				
+				for(int l=0;l<12;l++) {
+					int line = font[(16*y+x)*12+l];
+					for(int b=0;b<8;b++) {
+						int bit = (line >> b) & 1;
+						if (bit>0) {
+							g.fillRect(40*x+(34-4*b), 54*y+4*l, 4,4);	
+						}
+					}
+				}
+
+			}
+		}
+	}
+}
+
+
+
+class ClipBoard {				// Glyph Clipboard Class
+	byte width;
+	byte[] def = new byte[12];
+	
+	public void toClipBoard(byte glyphWidth, byte[] glyphDef) {
+		width = glyphWidth;
+		System.arraycopy(glyphDef, 0, def, 0, 12);            
+
+	}
+	
+	public void fromClipBoard(byte glyphWidth, byte[] glyphDef) {
+	}
+
+}
+
+
+public class RestoreFontManager {		// Main RFM Class
+
+	static final String APPNAME = "Restore Font Manager";
+	static final String VERSION = "0.256";
+
+	static final Color BGCOLOR = new Color (200, 200, 210);
+	static final Color ACCOLOR = new Color (180, 200, 190);
+
+	static final Color BTNCOLOR = new Color (190, 190, 220);
+	static final Color WIDCOLOR = new Color (190, 80, 130);
+
+	static final Color CB1COLOR = new Color (240, 190, 140);
+	static final Color CB2COLOR = new Color (210, 170, 170);
+
+	static final Color OFFCOLOR = new Color (250, 250, 230);
+	static final Color ONCOLOR = new Color (20, 40, 50);	
+
+	RestoreFont font;
+	Frame mainFrame;
+	Label status;
+
+	int currentGlyph;
+
+	Button[][] pixels = new Button[12][8];
+	Button[] widths = new Button[8];
+
+	ClipBoard[] clipBoard = new ClipBoard[2];
+	
+	RestoreFontManager() {
+
+		font = new RestoreFont();				
+		mainFrame = new Frame();		
+			
+		// Window parameters
+		mainFrame.setTitle(APPNAME + " " + VERSION);
+		mainFrame.setLayout(new BorderLayout(2,2));
+		mainFrame.setResizable(false);
+		mainFrame.setBackground(BGCOLOR);
+
+		// Status bar at the bottom
+	        status = new Label();
+	        mainFrame.add(status, BorderLayout.SOUTH);
+
+		// Left panel with glyphs
+	        Panel glyphPanel = new Panel();
+	        glyphPanel.setLayout(new GridLayout(16,16));        
+	        
+	        for(int i=0;i<256;i++) {
+	        	Button glyphButton = new Button(String.format("%03d", i));
+	        	glyphButton.setName(Integer.toString(i));
+			glyphButton.setBackground(BTNCOLOR);
+			glyphButton.addActionListener(new ActionListener() { 
+				public void actionPerformed(ActionEvent e) { 
+				        currentGlyph = Integer.valueOf(((Button)e.getSource()).getName());
+					displayGlyph(currentGlyph);				} 
+		        }); 
+			
+		        glyphPanel.add(glyphButton);		        		        
+	        }                
+	        
+	        mainFrame.add(glyphPanel, BorderLayout.WEST);
+
+
+	        // Right panel with glyph pixels (editor)
+	        Panel pixelPanel = new Panel();
+	        pixelPanel.setLayout(new GridLayout(13,8,1,1));
+	        
+	        for(int i=0;i<8;i++) {
+			Button widthButton = new Button(Integer.toString(i+1));
+        		widthButton.setName("w"+Integer.toString(i));
+        		widthButton.setMinimumSize(new Dimension(46,46));
+        		widthButton.setPreferredSize(new Dimension(46,46));
+			widthButton.setBackground(BTNCOLOR);
+        		widths[i] = widthButton;
+        		pixelPanel.add(widthButton);	        
+	        }
+	        
+	        for(int y=0;y<12;y++) {
+	        	for(int x=0;x<8;x++) {
+	        		Button pixelButton = new Button();
+	        		pixelButton.setName(Integer.toString(y*12+x));
+	        		pixelButton.setMinimumSize(new Dimension(46,46));
+	        		pixelButton.setPreferredSize(new Dimension(46,46));
+				pixelButton.setBackground(OFFCOLOR);
+	        		pixelButton.addActionListener(new ActionListener() { 
+					public void actionPerformed(ActionEvent e) { 
+						pixelButtonClicked(Integer.valueOf(pixelButton.getName()));
+					} 
+				}); 
+				pixels[y][x] = pixelButton;
+				pixelPanel.add(pixelButton);		        		        
+			}
+	        }                
+                       
+	        
+	        mainFrame.add(pixelPanel, BorderLayout.EAST);
+
+
+	        mainFrame.addWindowListener(new WindowAdapter() {
+		    public void windowClosing(WindowEvent e) {
+		        mainFrame.dispose();
+		        System.exit(0);
+		    }
+		});
+
+
+		// Action panel
+		doActionPanel();
+		// Menu bar
+		doMenuBar();
+		
+		mainFrame.pack();
+		mainFrame.setSize(mainFrame.getPreferredSize());
+		mainFrame.setVisible(true);	
+	}
+
+	// Central panel with action buttons
+	public void doActionPanel() {
+	        Panel actionPanel = new Panel();
+	        actionPanel.setLayout(new GridLayout(10,1,2,2));
+
+		Button clearGlyphButton = new Button("Clear glyph");
+		clearGlyphButton.setBackground(ACCOLOR);
+	        actionPanel.add(clearGlyphButton);
+
+		Button showFontButton = new Button("Show font");
+		showFontButton.setBackground(ACCOLOR);
+		showFontButton.addActionListener(new ActionListener() { 
+			public void actionPerformed(ActionEvent e) { 
+				renderFont();
+			} 
+		}); 
+	        actionPanel.add(showFontButton);
+
+		Label cb1Label = new Label("ClipBoard 1");
+		cb1Label.setBackground(CB1COLOR); 
+		cb1Label.setAlignment(Label.CENTER);
+		actionPanel.add(cb1Label);
+
+		Button cb1CopyButton = new Button("Copy glyph");
+		cb1CopyButton.setBackground(CB1COLOR);
+		cb1CopyButton.addActionListener(new ActionListener() { 
+			public void actionPerformed(ActionEvent e) { 
+			copyToClipBoard(1, currentGlyph);				
+			} 
+		}); 
+	        actionPanel.add(cb1CopyButton);
+
+		Button cb1PasteButton = new Button("Paste glyph");
+		cb1PasteButton.setBackground(CB1COLOR);
+	        actionPanel.add(cb1PasteButton);
+
+		Button cb1ClearButton = new Button("Clear");
+		cb1ClearButton.setBackground(CB1COLOR);
+	        actionPanel.add(cb1ClearButton);
+
+		Label cb2Label = new Label("ClipBoard 2");
+		cb2Label.setBackground(CB2COLOR); 
+		cb2Label.setAlignment(Label.CENTER);
+		actionPanel.add(cb2Label);
+
+		Button cb2CopyButton = new Button("Copy glyph");
+		cb2CopyButton.setBackground(CB2COLOR);
+	        actionPanel.add(cb2CopyButton);
+
+		Button cb2PasteButton = new Button("Paste glyph");
+		cb2PasteButton.setBackground(CB2COLOR);
+	        actionPanel.add(cb2PasteButton);
+
+		Button cb2ClearButton = new Button("Clear");
+		cb2ClearButton.setBackground(CB2COLOR);
+	        actionPanel.add(cb2ClearButton);
+
+	        mainFrame.add(actionPanel, BorderLayout.CENTER);
+	}
+
+	// Create window menu bar 
+	public void doMenuBar() {
+	        MenuBar mainMenuBar = new MenuBar();
+	        Menu fileMenu = new Menu("File"); 	        
+
+	        // Load Restore font 
+	        MenuItem loadRestoreFontItem = new MenuItem("Load Restore font");
+		loadRestoreFontItem.setShortcut(new MenuShortcut(KeyEvent.VK_O));
+	        loadRestoreFontItem.addActionListener(new ActionListener() { 
+	            public void actionPerformed(ActionEvent e) { 
+	            	loadFont("Restore");
+	            } 
+	        }); 
+      	        fileMenu.add(loadRestoreFontItem);
+
+      	        // Save Restore font
+	        MenuItem saveRestoreFontItem = new MenuItem("Save Restore font");	        
+		saveRestoreFontItem.setShortcut(new MenuShortcut(KeyEvent.VK_S));
+	        saveRestoreFontItem.addActionListener(new ActionListener() { 
+	            public void actionPerformed(ActionEvent e) { 
+	            	saveFont();
+	            } 
+	        }); 
+	        fileMenu.add(saveRestoreFontItem);      	        
+
+	        // Separator
+	        fileMenu.addSeparator();	        
+
+	        // Load Desktop font 
+	        MenuItem loadDesktopFontItem = new MenuItem("Import Desktop font");
+		loadDesktopFontItem.setShortcut(new MenuShortcut(KeyEvent.VK_I));
+	        loadDesktopFontItem.addActionListener(new ActionListener() { 
+	            public void actionPerformed(ActionEvent e) { 
+	            	loadFont("Desktop");
+	            } 
+	        }); 
+	        fileMenu.add(loadDesktopFontItem);
+
+	        // Separator
+	        fileMenu.addSeparator();	        
+
+		// Exit	        	        
+	        MenuItem exitItem = new MenuItem("Quit");	              
+		exitItem.setShortcut(new MenuShortcut(KeyEvent.VK_Q));  
+	        exitItem.addActionListener(new ActionListener() { 
+	            public void actionPerformed(ActionEvent e) { 
+	            	mainFrame.dispose();
+	                System.exit(0); 
+	            } 
+	        }); 
+	        fileMenu.add(exitItem);	        
+	        
+	        mainMenuBar.add(fileMenu);        
+	        mainFrame.setMenuBar(mainMenuBar);
+	}
+
+	// Render the whole font in popup window
+	public void renderFont() {
+
+		if (font.loaded==false) {
+			status.setText("No font loaded.");
+		}
+		else {
+
+			Frame popup = new Frame();
+			popup.setTitle("Font preview");		
+			popup.setResizable(false);
+
+			FontCanvas fontCanvas = new FontCanvas(font.glyphDefs, ONCOLOR);
+			popup.add(fontCanvas);
+
+		        popup.addWindowListener(new WindowAdapter() {
+			    public void windowClosing(WindowEvent e) {
+			        popup.dispose();
+			    }
+			});
+
+			popup.pack();
+			popup.setSize(popup.getPreferredSize());
+			popup.setVisible(true);	
+		}
+	}
+
+
+	// Font save, Restore format only
+	public void saveFont() {
+		FileDialog fd = new FileDialog(mainFrame, "Select where to save the font", FileDialog.SAVE);
+		fd.setFile("*.*");
+		fd.setVisible(true);
+		String filename = fd.getFile();
+		if (filename == null)
+			status.setText("Save font canceled.");
+		else {
+			status.setText("Saving font to file " + filename +"...");
+			
+			boolean fontSaved = font.saveRestoreFont(fd.getDirectory()+filename);
+						
+			if (fontSaved) 
+				status.setText("Font saved to file " + filename +".");
+			else
+				status.setText("Saving font to file " + filename +" failed.");
+		}
+	}
+
+
+	// Font load, fontType = Desktop or Restore 
+	public void loadFont(String fontType) {
+		FileDialog fd = new FileDialog(mainFrame, "Select a " + fontType + " font file", FileDialog.LOAD);
+		fd.setFile("*.*");
+		fd.setVisible(true);
+		String filename = fd.getFile();
+		if (filename == null)
+			status.setText("Load " + fontType + " font canceled.");
+		else {
+			status.setText("Loading "+ fontType + " font from file " + filename +"...");
+			
+			boolean fontLoaded = (fontType == "Desktop") ? font.loadDesktopFont(fd.getDirectory()+filename) : font.loadRestoreFont(fd.getDirectory()+filename);
+						
+			if (fontLoaded) 
+				status.setText(fontType + " font " + filename +" loaded.");
+			else
+				status.setText("Loading " + fontType + " font from file " + filename +" failed.");
+		}
+	}
+	
+	// Display glyph with 
+	public void displayGlyph(int glyphNumber) {		
+		if (font.loaded==false) {
+			status.setText("No font loaded.");
+		}
+		else {
+
+			String glyphButtonName = Integer.toString(glyphNumber);
+			status.setText("Displaying glyph with code " + glyphButtonName + ".");
+
+			int width = font.getGlyphWidth(glyphNumber);
+			byte[] glyph = font.getGlyphDef(glyphNumber);
+									
+			for (int y=0;y<12;y++) {
+				byte line = glyph[y];
+				for (int x=0;x<8;x++) {
+					if (((line >>> x) & (int)1) == 1) {
+						pixels[y][7-x].setBackground(ONCOLOR); 
+					}
+					else {
+						pixels[y][7-x].setBackground(OFFCOLOR); 
+
+					}
+				}
+			}
+
+			for (int i=0; i<8;i++) {
+				if ((i+1) <= width) {
+					widths[i].setBackground(WIDCOLOR);
+				}
+				else {
+					widths[i].setBackground(BTNCOLOR);
+				}
+			}
+									
+		}
+
+	}
+
+	public void copyToClipBoard (int clipBoardId, int glyphNumber) {
+		if (font.loaded==false) {
+			status.setText("No font loaded.");
+		}
+		else {
+			clipBoard[clipBoardId].toClipBoard(font.getGlyphWidth(glyphNumber), font.getGlyphDef(glyphNumber));
+		}
+			
+	}
+
+
+	public void pixelButtonClicked(int number) {
+	}
+
+
+	// Here we start
+	public static void main (String[] argv) {
+		System.out.println(APPNAME + " " + VERSION + " starting up...");
+		RestoreFontManager rfm = new RestoreFontManager();
+	}
+
+
+}
