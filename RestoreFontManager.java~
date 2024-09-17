@@ -331,7 +331,7 @@ public class RestoreFontManager {		// Main RFM Class
 	        Menu fileMenu = new Menu("File"); 	        
 
 	        // Load Restore font 
-	        MenuItem loadRestoreFontItem = new MenuItem("Load Restore font  ");
+	        MenuItem loadRestoreFontItem = new MenuItem("Load Restore font");
 		loadRestoreFontItem.setShortcut(new MenuShortcut(KeyEvent.VK_O));
 	        loadRestoreFontItem.addActionListener(new ActionListener() { 
 	            public void actionPerformed(ActionEvent e) { 
@@ -341,7 +341,7 @@ public class RestoreFontManager {		// Main RFM Class
       	        fileMenu.add(loadRestoreFontItem);
 
       	        // Save Restore font
-	        MenuItem saveRestoreFontItem = new MenuItem("Save Restore font  ");	        
+	        MenuItem saveRestoreFontItem = new MenuItem("Save Restore font");	        
 		saveRestoreFontItem.setShortcut(new MenuShortcut(KeyEvent.VK_S));
 	        saveRestoreFontItem.addActionListener(new ActionListener() { 
 	            public void actionPerformed(ActionEvent e) { 
@@ -367,7 +367,7 @@ public class RestoreFontManager {		// Main RFM Class
 	        fileMenu.addSeparator();	        
 
 		// Exit	        	        
-	        MenuItem exitItem = new MenuItem("Quit              ");	              
+	        MenuItem exitItem = new MenuItem("Quit");	              
 		exitItem.setShortcut(new MenuShortcut(KeyEvent.VK_Q));  
 	        exitItem.addActionListener(new ActionListener() { 
 	            public void actionPerformed(ActionEvent e) { 
