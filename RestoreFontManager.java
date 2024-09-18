@@ -76,13 +76,18 @@ class RestoreFont { 				// Restore Font Class
 }
 
 class FontCanvas extends Canvas {
+	static final int WIDTH = 640;
+	static final int HEIGHT = 864;
+	
+
 	byte[] font;
 	Color color;
+
 
 	public FontCanvas(byte[] fontDef, Color fontColor) {
 		font = fontDef;
 		color = fontColor;
-		setSize(new Dimension(640, 864));
+		setSize(new Dimension(WIDTH, HEIGHT));
 	}
 
 	public void paint(Graphics g) {
@@ -106,6 +111,16 @@ class FontCanvas extends Canvas {
 				}
 			}
 		}
+	}
+	
+	
+	public void updateFont(byte[] fontDef) {
+		font = fontDef;
+	}
+
+	public void update(Graphics g) {
+		g.clearRect(0,0,WIDTH-1, HEIGHT-1);
+		paint(g);
 	}
 }
 
@@ -146,10 +161,13 @@ public class RestoreFontManager {		// Main RFM Class
 	static final Color CB2COLOR = new Color (210, 170, 170);
 	static final Color OFFCOLOR = new Color (250, 250, 230);
 	static final Color ONCOLOR = new Color (20, 40, 50);	
+	static final Color HEXCOLOR = new Color (150,170,200);
 
 	RestoreFont font;
 	Frame mainFrame;
+	Frame fontViewFrame;
 	Label status;
+	FontCanvas fontCanvas;
 
 	int currentGlyph;
 
@@ -175,8 +193,24 @@ public class RestoreFontManager {		// Main RFM Class
 
 		// Left panel with glyphs
 	        Panel glyphPanel = new Panel();
-	        glyphPanel.setLayout(new GridLayout(16,16));        
+	        glyphPanel.setLayout(new GridLayout(17,17,1,1)); 
+	        
+	        for(int i=0;i<17;i++) {
+	        	String labelText = i==0 ? "" : String.format("x%X", i-1);
+	        	Label hexaLabel = new Label(labelText);
+			hexaLabel.setBackground(HEXCOLOR); 
+			hexaLabel.setAlignment(Label.CENTER);
+			glyphPanel.add(hexaLabel);
+	        }
+	               
 	        for(int i=0;i<256;i++) {
+	        	if (i%16==0) {
+		        	Label hexaLabel = new Label(String.format("%Xx", i/16));
+				hexaLabel.setBackground(HEXCOLOR); 
+				hexaLabel.setAlignment(Label.CENTER);
+				glyphPanel.add(hexaLabel);	        	
+			}
+
 	        	Button glyphButton = new Button(String.format("%03d", i));
 	        	glyphButton.setName(Integer.toString(i));
 			glyphButton.setBackground(BTNCOLOR);
@@ -187,6 +221,8 @@ public class RestoreFontManager {		// Main RFM Class
 				} 
 		        }); 
 		        glyphPanel.add(glyphButton);		        		        
+
+
 	        }                
 	        mainFrame.add(glyphPanel, BorderLayout.WEST);
 
@@ -196,8 +232,8 @@ public class RestoreFontManager {		// Main RFM Class
 	        for(int i=0;i<8;i++) {
 			Button widthButton = new Button(Integer.toString(i+1));
         		widthButton.setName("w"+Integer.toString(i));
-        		widthButton.setMinimumSize(new Dimension(46,46));
-        		widthButton.setPreferredSize(new Dimension(46,46));
+        		widthButton.setMinimumSize(new Dimension(45,45));
+        		widthButton.setPreferredSize(new Dimension(45,45));
 			widthButton.setBackground(BTNCOLOR);
         		widths[i] = widthButton;
         		pixelPanel.add(widthButton);	        
@@ -206,8 +242,8 @@ public class RestoreFontManager {		// Main RFM Class
 	        	for(int x=0;x<8;x++) {
 	        		Button pixelButton = new Button();
 	        		pixelButton.setName(Integer.toString(y*12+x));
-	        		pixelButton.setMinimumSize(new Dimension(46,46));
-	        		pixelButton.setPreferredSize(new Dimension(46,46));
+	        		pixelButton.setMinimumSize(new Dimension(45,45));
+	        		pixelButton.setPreferredSize(new Dimension(45,45));
 				pixelButton.setBackground(OFFCOLOR);
 	        		pixelButton.addActionListener(new ActionListener() { 
 					public void actionPerformed(ActionEvent e) { 
@@ -242,7 +278,7 @@ public class RestoreFontManager {		// Main RFM Class
 	// Central panel with action buttons
 	public void doActionPanel() {
 	        Panel actionPanel = new Panel();
-	        actionPanel.setLayout(new GridLayout(10,1,2,2));
+	        actionPanel.setLayout(new GridLayout(10,1,3,3));
 
 		Button clearGlyphButton = new Button("Clear glyph");
 		clearGlyphButton.setBackground(ACCOLOR);
@@ -386,23 +422,39 @@ public class RestoreFontManager {		// Main RFM Class
 		if (font.loaded==false) {
 			status.setText("No font loaded.");
 		} else {
+			
+			if (fontViewFrame==null) {
+				fontViewFrame = new Frame();
+				fontViewFrame.setTitle("Font preview");		
+				fontViewFrame.setResizable(false);
+				fontViewFrame.setLayout(new BorderLayout(2,2));
+				Button refreshButton = new Button("Refresh");
+				refreshButton.addActionListener(new ActionListener() { 
+					public void actionPerformed(ActionEvent e) { 
+						renderFont();
+					} 
+				}); 
+				
+				fontViewFrame.add(refreshButton, BorderLayout.NORTH);
+								
+				fontCanvas = new FontCanvas(font.glyphDefs, ONCOLOR);
+				fontViewFrame.add(fontCanvas, BorderLayout.CENTER);
 
-			Frame popup = new Frame();
-			popup.setTitle("Font preview");		
-			popup.setResizable(false);
-
-			FontCanvas fontCanvas = new FontCanvas(font.glyphDefs, ONCOLOR);
-			popup.add(fontCanvas);
-
-		        popup.addWindowListener(new WindowAdapter() {
-			    public void windowClosing(WindowEvent e) {
-			        popup.dispose();
-			    }
-			});
-
-			popup.pack();
-			popup.setSize(popup.getPreferredSize());
-			popup.setVisible(true);	
+			        fontViewFrame.addWindowListener(new WindowAdapter() {
+				    public void windowClosing(WindowEvent e) {
+				        fontViewFrame.dispose();
+				        fontViewFrame=null;
+				    }
+				});
+				
+				fontViewFrame.pack();
+				fontViewFrame.setSize(fontViewFrame.getPreferredSize());
+				fontViewFrame.setVisible(true);	
+			} else {
+				
+				fontCanvas.updateFont(font.glyphDefs);
+				fontCanvas.repaint();
+			}
 		}
 	}
 
