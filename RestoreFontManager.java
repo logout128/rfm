@@ -73,6 +73,32 @@ class RestoreFont { 				// Restore Font Class
 	public void setGlyphDef(int glyphNumber, byte[] glyphDef) {	
 		System.arraycopy(glyphDef, 0, glyphDefs, 12*glyphNumber, 12);			
 	}
+	
+	public boolean getPixelValue (int glyphNumber, int x, int y) {
+		if (((glyphDefs[glyphNumber*12+y] >> (7-x)) & 1) == 1) {
+			return true;
+		} else {
+			return false;		
+		}
+	}
+
+	public void flipPixelValue (int glyphNumber, int x, int y) {
+		glyphDefs[glyphNumber*12+y] = (byte) (glyphDefs[glyphNumber*12+y] ^ (1 << (7-x)));
+	}
+
+	public void fixGlyphWidth(int glyphNumber) {
+		int max = 0;	
+		for(int line=0; line<12; line++) {
+			for( int bit=7; bit>=0; bir--) {
+				if 
+			
+			int val = (int)(glyphDefs[glyphNumber*12+line]).highestOneBit();
+			max = val > max ? val : max;
+		}
+		
+		glyphWidths[glyphNumber] = (byte) max;
+	}
+	
 }
 
 class FontCanvas extends Canvas {
@@ -151,7 +177,7 @@ class ClipBoard {				// Glyph Clipboard Class
 
 public class RestoreFontManager {		// Main RFM Class
 	static final String APPNAME = "Restore Font Manager";
-	static final String VERSION = "0.384";
+	static final String VERSION = "0.512";
 
 	static final Color BGCOLOR = new Color (200, 200, 210);
 	static final Color ACCOLOR = new Color (180, 200, 190);
@@ -498,7 +524,7 @@ public class RestoreFontManager {		// Main RFM Class
 		}
 	}
 	
-	// Display glyph with 
+	// Display glyph 
 	public void displayGlyph() {		
 		if (font.loaded==false) {
 			status.setText("No font loaded.");
@@ -567,6 +593,11 @@ public class RestoreFontManager {		// Main RFM Class
 
 
 	public void pixelButtonClicked (int number) {
+		int y = number / 12;
+		int x = number % 12;		
+		font.flipPixelValue(currentGlyph, x, y);
+		fixGlyphWidth(currentGlyph);
+		displayGlyph();
 	}
 
 

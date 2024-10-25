@@ -76,13 +76,18 @@ class RestoreFont { 				// Restore Font Class
 }
 
 class FontCanvas extends Canvas {
+	static final int WIDTH = 640;
+	static final int HEIGHT = 864;
+	
+
 	byte[] font;
 	Color color;
+
 
 	public FontCanvas(byte[] fontDef, Color fontColor) {
 		font = fontDef;
 		color = fontColor;
-		setSize(new Dimension(640, 864));
+		setSize(new Dimension(WIDTH, HEIGHT));
 	}
 
 	public void paint(Graphics g) {
@@ -109,12 +114,12 @@ class FontCanvas extends Canvas {
 	}
 	
 	
-	public void updateFont(byte[] fontDef, Color fontColor) {
+	public void updateFont(byte[] fontDef) {
 		font = fontDef;
-		color = fontColor;
 	}
 
 	public void update(Graphics g) {
+		g.clearRect(0,0,WIDTH-1, HEIGHT-1);
 		paint(g);
 	}
 }
@@ -446,12 +451,9 @@ public class RestoreFontManager {		// Main RFM Class
 				fontViewFrame.setSize(fontViewFrame.getPreferredSize());
 				fontViewFrame.setVisible(true);	
 			} else {
-
-				fontCanvas = new FontCanvas(font.glyphDefs, ONCOLOR);
-				fontViewFrame.add(fontCanvas, BorderLayout.CENTER);
-				fontViewFrame.pack();
-				fontViewFrame.setSize(fontViewFrame.getPreferredSize());
-				fontViewFrame.setVisible(true);	
+				
+				fontCanvas.updateFont(font.glyphDefs);
+				fontCanvas.repaint();
 			}
 		}
 	}
@@ -565,6 +567,7 @@ public class RestoreFontManager {		// Main RFM Class
 
 
 	public void pixelButtonClicked (int number) {
+		
 	}
 
 
