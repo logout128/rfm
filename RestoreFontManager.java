@@ -26,6 +26,33 @@ class RestoreFont { 				// Restore Font Class
 		}
 	}
 
+
+	public boolean loadROMFont(String path) {
+		byte[] romGlyphDef = new byte[768];
+		try (	
+			InputStream inputStream = new FileInputStream(path);
+		) {
+			inputStream.read(romGlyphDef);                        
+			inputStream.close();          			
+			
+			for(int i=0;i<256;i++) {
+				glyphWidths[i] = (byte)8;
+			}
+						
+			for(int i=32;i<128;i++) {
+				System.arraycopy(romGlyphDef, (i-32)*8, glyphDefs, (i*12)+2, 8);
+			}
+			
+			loaded = true;			
+			return true;
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			return false;
+		}
+	}
+
+
+
 	public boolean loadRestoreFont(String path) {
 		try (	
 			InputStream inputStream = new FileInputStream(path);
@@ -86,19 +113,6 @@ class RestoreFont { 				// Restore Font Class
 		glyphDefs[glyphNumber*12+y] = (byte) (glyphDefs[glyphNumber*12+y] ^ (1 << (7-x)));
 	}
 
-	public void fixGlyphWidth(int glyphNumber) {
-		int max = 0;	
-		for(int line=0; line<12; line++) {
-			for( int bit=7; bit>=0; bir--) {
-				if 
-			
-			int val = (int)(glyphDefs[glyphNumber*12+line]).highestOneBit();
-			max = val > max ? val : max;
-		}
-		
-		glyphWidths[glyphNumber] = (byte) max;
-	}
-	
 }
 
 class FontCanvas extends Canvas {
@@ -177,7 +191,7 @@ class ClipBoard {				// Glyph Clipboard Class
 
 public class RestoreFontManager {		// Main RFM Class
 	static final String APPNAME = "Restore Font Manager";
-	static final String VERSION = "0.512";
+	static final String VERSION = "0.768";
 
 	static final Color BGCOLOR = new Color (200, 200, 210);
 	static final Color ACCOLOR = new Color (180, 200, 190);
@@ -255,12 +269,17 @@ public class RestoreFontManager {		// Main RFM Class
 	        // Right panel with glyph pixels (editor)
 	        Panel pixelPanel = new Panel();
 	        pixelPanel.setLayout(new GridLayout(13,8,1,1));
-	        for(int i=0;i<8;i++) {
-			Button widthButton = new Button(Integer.toString(i+1));
-        		widthButton.setName("w"+Integer.toString(i));
+	        for(byte i=0;i<8;i++) {
+			Button widthButton = new Button();
+        		widthButton.setName("w"+Byte.toString(i));
         		widthButton.setMinimumSize(new Dimension(45,45));
         		widthButton.setPreferredSize(new Dimension(45,45));
 			widthButton.setBackground(BTNCOLOR);
+        		widthButton.addActionListener(new ActionListener() { 
+				public void actionPerformed(ActionEvent e) { 
+					widthButtonClicked(Byte.valueOf(widthButton.getName().substring(1)));
+				} 
+			}); 
         		widths[i] = widthButton;
         		pixelPanel.add(widthButton);	        
 	        }
@@ -415,15 +434,25 @@ public class RestoreFontManager {		// Main RFM Class
 	        // Separator
 	        fileMenu.addSeparator();	        
 
-	        // Load Desktop font 
-	        MenuItem loadDesktopFontItem = new MenuItem("Import Desktop font");
-		loadDesktopFontItem.setShortcut(new MenuShortcut(KeyEvent.VK_I));
+	        // Import Desktop font 
+	        MenuItem loadDesktopFontItem = new MenuItem("Import font in Desktop format");
+		loadDesktopFontItem.setShortcut(new MenuShortcut(KeyEvent.VK_D));
 	        loadDesktopFontItem.addActionListener(new ActionListener() { 
 	            public void actionPerformed(ActionEvent e) { 
 	            	loadFont("Desktop");
 	            } 
 	        }); 
 	        fileMenu.add(loadDesktopFontItem);
+
+	        // Import ROM font 
+	        MenuItem loadROMFontItem = new MenuItem("Import font in ROM format");
+		loadROMFontItem.setShortcut(new MenuShortcut(KeyEvent.VK_R));
+	        loadROMFontItem.addActionListener(new ActionListener() { 
+	            public void actionPerformed(ActionEvent e) { 
+	            	loadFont("ROM");
+	            } 
+	        }); 
+	        fileMenu.add(loadROMFontItem);
 
 	        // Separator
 	        fileMenu.addSeparator();	        
@@ -515,7 +544,7 @@ public class RestoreFontManager {		// Main RFM Class
 			status.setText("Load " + fontType + " font canceled.");
 		} else {
 			status.setText("Loading "+ fontType + " font from file " + filename +"...");			
-			boolean fontLoaded = (fontType == "Desktop") ? font.loadDesktopFont(fd.getDirectory()+filename) : font.loadRestoreFont(fd.getDirectory()+filename);						
+			boolean fontLoaded = (fontType == "Desktop") ? font.loadDesktopFont(fd.getDirectory()+filename) : ((fontType == "ROM") ? font.loadROMFont(fd.getDirectory()+filename) : font.loadRestoreFont(fd.getDirectory()+filename));
 			if (fontLoaded) {
 				status.setText(fontType + " font " + filename +" loaded.");
 			} else {
@@ -591,12 +620,19 @@ public class RestoreFontManager {		// Main RFM Class
 		}
 	}
 
-
 	public void pixelButtonClicked (int number) {
 		int y = number / 12;
 		int x = number % 12;		
 		font.flipPixelValue(currentGlyph, x, y);
-		fixGlyphWidth(currentGlyph);
+		displayGlyph();
+	}
+
+	public void widthButtonClicked (byte number) {
+		if (number == 0 && font.getGlyphWidth(currentGlyph) == 1) {
+			font.setGlyphWidth(currentGlyph, (byte)0);
+		} else {
+			font.setGlyphWidth(currentGlyph, ++number);
+		}
 		displayGlyph();
 	}
 
