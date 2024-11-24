@@ -26,7 +26,6 @@ class RestoreFont { 				// Restore Font Class
 		}
 	}
 
-
 	public boolean loadROMFont(String path) {
 		byte[] romGlyphDef = new byte[768];
 		try (	
@@ -50,8 +49,6 @@ class RestoreFont { 				// Restore Font Class
 			return false;
 		}
 	}
-
-
 
 	public boolean loadRestoreFont(String path) {
 		try (	
@@ -82,7 +79,6 @@ class RestoreFont { 				// Restore Font Class
 		}
 	}
 
-
 	public byte getGlyphWidth(int glyphNumber) {	
 		return glyphWidths[glyphNumber];
 	}
@@ -112,17 +108,21 @@ class RestoreFont { 				// Restore Font Class
 	public void flipPixelValue (int glyphNumber, int x, int y) {
 		glyphDefs[glyphNumber*12+y] = (byte) (glyphDefs[glyphNumber*12+y] ^ (1 << (7-x)));
 	}
-
+	
+	public void clearGlyph (int glyphNumber) {
+		byte[] glyphDef = new byte[12];
+		glyphWidths[glyphNumber] = 0;	
+		System.arraycopy(glyphDef, 0, glyphDefs, 12*glyphNumber, 12);		
+	}
+	
 }
 
 class FontCanvas extends Canvas {
 	static final int WIDTH = 640;
 	static final int HEIGHT = 864;
 	
-
 	byte[] font;
 	Color color;
-
 
 	public FontCanvas(byte[] fontDef, Color fontColor) {
 		font = fontDef;
@@ -164,8 +164,6 @@ class FontCanvas extends Canvas {
 	}
 }
 
-
-
 class ClipBoard {				// Glyph Clipboard Class
 	byte width;
 	byte[] def = new byte[12];
@@ -188,10 +186,9 @@ class ClipBoard {				// Glyph Clipboard Class
 	}
 }
 
-
 public class RestoreFontManager {		// Main RFM Class
 	static final String APPNAME = "Restore Font Manager";
-	static final String VERSION = "0.768";
+	static final String VERSION = "1.0";
 
 	static final Color BGCOLOR = new Color (200, 200, 210);
 	static final Color ACCOLOR = new Color (180, 200, 190);
@@ -249,12 +246,12 @@ public class RestoreFontManager {		// Main RFM Class
 				hexaLabel.setBackground(HEXCOLOR); 
 				hexaLabel.setAlignment(Label.CENTER);
 				glyphPanel.add(hexaLabel);	        	
-			}
+				}
 
-	        	Button glyphButton = new Button(String.format("%03d", i));
-	        	glyphButton.setName(Integer.toString(i));
-			glyphButton.setBackground(BTNCOLOR);
-			glyphButton.addActionListener(new ActionListener() { 
+				Button glyphButton = new Button(String.format("%03d", i));
+				glyphButton.setName(Integer.toString(i));
+				glyphButton.setBackground(BTNCOLOR);
+				glyphButton.addActionListener(new ActionListener() { 
 				public void actionPerformed(ActionEvent e) { 
 				        currentGlyph = Integer.valueOf(((Button)e.getSource()).getName());
 					displayGlyph();
@@ -271,11 +268,11 @@ public class RestoreFontManager {		// Main RFM Class
 	        pixelPanel.setLayout(new GridLayout(13,8,1,1));
 	        for(byte i=0;i<8;i++) {
 			Button widthButton = new Button();
-        		widthButton.setName("w"+Byte.toString(i));
-        		widthButton.setMinimumSize(new Dimension(45,45));
-        		widthButton.setPreferredSize(new Dimension(45,45));
+        	widthButton.setName("w"+Byte.toString(i));
+        	widthButton.setMinimumSize(new Dimension(45,45));
+        	widthButton.setPreferredSize(new Dimension(45,45));
 			widthButton.setBackground(BTNCOLOR);
-        		widthButton.addActionListener(new ActionListener() { 
+        	widthButton.addActionListener(new ActionListener() { 
 				public void actionPerformed(ActionEvent e) { 
 					widthButtonClicked(Byte.valueOf(widthButton.getName().substring(1)));
 				} 
@@ -326,8 +323,13 @@ public class RestoreFontManager {		// Main RFM Class
 	        actionPanel.setLayout(new GridLayout(10,1,3,3));
 
 		Button clearGlyphButton = new Button("Clear glyph");
-		clearGlyphButton.setBackground(ACCOLOR);
-	        actionPanel.add(clearGlyphButton);
+		clearGlyphButton.setBackground(ACCOLOR);        
+		clearGlyphButton.addActionListener(new ActionListener() { 
+			public void actionPerformed(ActionEvent e) { 
+				clearGlyph();
+			} 
+		}); 
+        actionPanel.add(clearGlyphButton);
 
 		Button showFontButton = new Button("Show font");
 		showFontButton.setBackground(ACCOLOR);
@@ -336,7 +338,7 @@ public class RestoreFontManager {		// Main RFM Class
 				renderFont();
 			} 
 		}); 
-	        actionPanel.add(showFontButton);
+        actionPanel.add(showFontButton);
 
 		Label cb1Label = new Label("ClipBoard 1");
 		cb1Label.setBackground(CB1COLOR); 
@@ -350,7 +352,7 @@ public class RestoreFontManager {		// Main RFM Class
 				copyToClipBoard(clipBoard1, 1);				
 			} 
 		}); 
-	        actionPanel.add(cb1CopyButton);
+        actionPanel.add(cb1CopyButton);
 
 		Button cb1PasteButton = new Button("Paste glyph");
 		cb1PasteButton.setBackground(CB1COLOR);
@@ -359,7 +361,7 @@ public class RestoreFontManager {		// Main RFM Class
 				pasteFromClipBoard(clipBoard1, 1);				
 			} 
 		}); 
-	        actionPanel.add(cb1PasteButton);
+        actionPanel.add(cb1PasteButton);
 
 		Button cb1ClearButton = new Button("Clear");
 		cb1ClearButton.setBackground(CB1COLOR);
@@ -368,7 +370,7 @@ public class RestoreFontManager {		// Main RFM Class
 				clearClipBoard(clipBoard1, 1);				
 			} 
 		}); 
-	        actionPanel.add(cb1ClearButton);
+        actionPanel.add(cb1ClearButton);
 
 		Label cb2Label = new Label("ClipBoard 2");
 		cb2Label.setBackground(CB2COLOR); 
@@ -382,7 +384,7 @@ public class RestoreFontManager {		// Main RFM Class
 				copyToClipBoard(clipBoard2, 2);				
 			} 
 		}); 
-	        actionPanel.add(cb2CopyButton);
+        actionPanel.add(cb2CopyButton);
 
 		Button cb2PasteButton = new Button("Paste glyph");
 		cb2PasteButton.setBackground(CB2COLOR);
@@ -391,8 +393,7 @@ public class RestoreFontManager {		// Main RFM Class
 				pasteFromClipBoard(clipBoard2, 2);				
 			} 
 		}); 
-
-	        actionPanel.add(cb2PasteButton);
+        actionPanel.add(cb2PasteButton);
 
 		Button cb2ClearButton = new Button("Clear");
 		cb2ClearButton.setBackground(CB2COLOR);
@@ -401,9 +402,9 @@ public class RestoreFontManager {		// Main RFM Class
 				clearClipBoard(clipBoard2, 2);				
 			} 
 		}); 
-	        actionPanel.add(cb2ClearButton);
+        actionPanel.add(cb2ClearButton);
 
-	        mainFrame.add(actionPanel, BorderLayout.CENTER);
+        mainFrame.add(actionPanel, BorderLayout.CENTER);
 	}
 
 	// Create window menu bar 
@@ -413,7 +414,7 @@ public class RestoreFontManager {		// Main RFM Class
 
 	        // Load Restore font 
 	        MenuItem loadRestoreFontItem = new MenuItem("Load Restore font  ");
-		loadRestoreFontItem.setShortcut(new MenuShortcut(KeyEvent.VK_O));
+			loadRestoreFontItem.setShortcut(new MenuShortcut(KeyEvent.VK_O));
 	        loadRestoreFontItem.addActionListener(new ActionListener() { 
 	            public void actionPerformed(ActionEvent e) { 
 	            	loadFont("Restore");
@@ -421,9 +422,9 @@ public class RestoreFontManager {		// Main RFM Class
 	        }); 
       	        fileMenu.add(loadRestoreFontItem);
 
-      	        // Save Restore font
+      	    // Save Restore font
 	        MenuItem saveRestoreFontItem = new MenuItem("Save Restore font  ");	        
-		saveRestoreFontItem.setShortcut(new MenuShortcut(KeyEvent.VK_S));
+			saveRestoreFontItem.setShortcut(new MenuShortcut(KeyEvent.VK_S));
 	        saveRestoreFontItem.addActionListener(new ActionListener() { 
 	            public void actionPerformed(ActionEvent e) { 
 	            	saveFont();
@@ -436,7 +437,7 @@ public class RestoreFontManager {		// Main RFM Class
 
 	        // Import Desktop font 
 	        MenuItem loadDesktopFontItem = new MenuItem("Import font in Desktop format");
-		loadDesktopFontItem.setShortcut(new MenuShortcut(KeyEvent.VK_D));
+			loadDesktopFontItem.setShortcut(new MenuShortcut(KeyEvent.VK_D));
 	        loadDesktopFontItem.addActionListener(new ActionListener() { 
 	            public void actionPerformed(ActionEvent e) { 
 	            	loadFont("Desktop");
@@ -446,7 +447,7 @@ public class RestoreFontManager {		// Main RFM Class
 
 	        // Import ROM font 
 	        MenuItem loadROMFontItem = new MenuItem("Import font in ROM format");
-		loadROMFontItem.setShortcut(new MenuShortcut(KeyEvent.VK_R));
+			loadROMFontItem.setShortcut(new MenuShortcut(KeyEvent.VK_R));
 	        loadROMFontItem.addActionListener(new ActionListener() { 
 	            public void actionPerformed(ActionEvent e) { 
 	            	loadFont("ROM");
@@ -457,9 +458,9 @@ public class RestoreFontManager {		// Main RFM Class
 	        // Separator
 	        fileMenu.addSeparator();	        
 
-		// Exit	        	        
+			// Exit	        	        
 	        MenuItem exitItem = new MenuItem("Quit              ");	              
-		exitItem.setShortcut(new MenuShortcut(KeyEvent.VK_Q));  
+			exitItem.setShortcut(new MenuShortcut(KeyEvent.VK_Q));  
 	        exitItem.addActionListener(new ActionListener() { 
 	            public void actionPerformed(ActionEvent e) { 
 	            	mainFrame.dispose();
@@ -470,6 +471,16 @@ public class RestoreFontManager {		// Main RFM Class
 	        
 	        mainMenuBar.add(fileMenu);        
 	        mainFrame.setMenuBar(mainMenuBar);
+	}
+
+	public void clearGlyph() {
+		if (font.loaded==false) {
+			status.setText("No font loaded.");
+		} else {
+			font.clearGlyph(currentGlyph);
+			displayGlyph();			
+			status.setText("Glyph with code " + currentGlyph + " cleared.");			
+		}	
 	}
 
 	// Render the whole font in popup window
