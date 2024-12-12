@@ -1,6 +1,7 @@
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
+import java.util.Arrays;
 
 class RestoreFont { 				// Restore Font Class
 	byte[] glyphWidths = new byte[256];
@@ -10,6 +11,8 @@ class RestoreFont { 				// Restore Font Class
 	public boolean loadDesktopFont(String path) {
 		byte[] desktopGlyphWidth = new byte[126];
 		byte[] desktopGlyphDef = new byte[12*126];
+		Arrays.fill(glyphWidths, (byte) 0);
+		Arrays.fill(glyphDefs, (byte) 0);
 		try (	
 			InputStream inputStream = new FileInputStream(path);
 		) {
@@ -28,6 +31,8 @@ class RestoreFont { 				// Restore Font Class
 
 	public boolean loadROMFont(String path) {
 		byte[] romGlyphDef = new byte[768];
+		Arrays.fill(glyphWidths, (byte) 0);
+		Arrays.fill(glyphDefs, (byte) 0);
 		try (	
 			InputStream inputStream = new FileInputStream(path);
 		) {
